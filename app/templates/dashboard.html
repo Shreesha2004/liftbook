@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% from "_marks.html" import icon %}
+{% block title %}Dashboard{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+{% if not exercises %}
+<section class="row">
+  <p class="margin-label hidden lg:block">{{ today | shortdate }}</p>
+  <div class="max-w-xl space-y-4">
+    <h1 class="text-3xl font-bold tracking-tight">No workouts yet</h1>
+    <p class="text-ink-2">This page is your logbook. Once you log a session it shows your estimated max for each lift, the trend over time, your records and your training calendar.</p>
+    <a href="/workouts/new" class="btn-ink">Log your first session</a>
+  </div>
+</section>
+{% else %}
+
+<form id="controls" class="row" onsubmit="return false">
+  <p class="margin-label hidden lg:block">{{ today | shortdate }}</p>
+  <div class="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+    <div class="min-w-0">
+      <input type="hidden" id="liftValue" name="exercise_id" value="{{ exercises[0].id }}">
+      <button type="button" id="liftButton" popovertarget="liftMenu" aria-haspopup="listbox" aria-expanded="false"
+              class="flex max-w-full items-center gap-2 border-b border-transparent text-left text-[2rem] font-bold leading-tight tracking-tight hover:border-rule sm:text-[2.5rem]">
+        <span class="sr-only">Lift: </span><span id="liftName" class="truncate">{{ exercises[0].name }}</span>
+        {{ icon("chevron", "mt-1 h-6 w-6 shrink-0 text-ink-2") }}
+      </button>
+      <div id="liftMenu" popover role="listbox" aria-label="Lift"
+           class="inset-auto m-0 max-h-[min(24rem,60vh)] w-64 overflow-y-auto rounded-[3px] border border-rule bg-white py-1 text-[15px] text-ink">
+        {% for exercise in exercises %}
+        <button type="button" role="option" data-id="{{ exercise.id }}" aria-selected="{{ 'true' if loop.first else 'false' }}"
+                class="group flex h-9 w-full items-center justify-between gap-4 px-3 text-left hover:bg-rule-soft focus:bg-rule-soft focus:outline-none aria-selected:font-semibold">
+          <span class="truncate">{{ exercise.name }}</span>{{ icon("check", "h-4 w-4 shrink-0 opacity-0 group-aria-selected:opacity-100") }}
+        </button>
+        {% endfor %}
+      </div>
+      <p class="mt-1 text-[13px] text-ink-3 lg:hidden">{{ today | shortdate }}</p>
+    </div>
+    <fieldset class="flex items-center gap-5 pb-2">
+      <legend class="sr-only">Range</legend>
+      {% for value, label in [("30", "30 days"), ("90", "90 days"), ("365", "1 year"), ("0", "All time")] %}
+      <label class="cursor-pointer">
+        <input type="radio" name="days" value="{{ value }}" class="peer sr-only" {{ "checked" if value == "90" }}>
+        <span class="text-sm font-medium text-ink-3 decoration-2 underline-offset-[6px] transition-colors hover:text-ink peer-checked:text-ink peer-checked:underline peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink">{{ label }}</span>
+      </label>
+      {% endfor %}
+    </fieldset>
+  </div>
+</form>
+
+<section class="row !mt-6">
+  <p class="sr-only">Summary</p>
+  <div class="lg:col-start-2" id="metrics" hx-get="/htmx/metrics" hx-include="#controls"
+       hx-trigger="load, change from:#controls" aria-live="polite">
+    <div class="h-[5.5rem] border-y border-rule"></div>
+  </div>
+</section>
+
+<div id="plateaus" hx-get="/htmx/plateaus" hx-trigger="load" class="empty:hidden"></div>
+
+<section class="row">
+  <h2 class="margin-label">Trend</h2>
+  <div class="space-y-3">
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-1 text-[13px] text-ink-2">
+      <span class="flex items-center gap-2"><svg class="h-2 w-5" aria-hidden="true"><line x1="0" y1="4" x2="20" y2="4" stroke="#2B2F36" stroke-width="2"/></svg>Estimated 1RM</span>
+      <span class="flex items-center gap-2"><svg class="h-2 w-5" aria-hidden="true"><line x1="0" y1="4" x2="20" y2="4" stroke="#8B9199" stroke-width="2" stroke-dasharray="3 3"/></svg>Heaviest set</span>
+      <span class="flex items-center gap-2"><svg class="h-3 w-3" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="#C8312B" stroke-width="1.6"/></svg>New record</span>
+    </div>
+    <div class="relative h-72">
+      <canvas id="progressionChart" role="img" aria-label="Line chart of estimated one-rep max per session for the selected lift"></canvas>
+      <p id="progressionEmpty" class="absolute inset-0 hidden items-center justify-center text-sm text-ink-3">No sessions for this lift in the selected range.</p>
+    </div>
+  </div>
+</section>
+
+<section class="row">
+  <h2 class="margin-label">Volume</h2>
+  <div class="space-y-3">
+    <p class="text-[13px] text-ink-2">Reps × kg lifted each week, by muscle group, over the last 12 weeks.</p>
+    <div id="volumeLegend" class="flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-ink-2"></div>
+    <div class="h-64"><canvas id="volumeChart" role="img" aria-label="Stacked bar chart of weekly training volume by muscle group"></canvas></div>
+    <details class="group text-sm">
+      <summary class="cursor-pointer list-none text-[13px] font-medium text-ink-2 underline decoration-rule underline-offset-4 hover:decoration-ink">View as a table</summary>
+      <div class="mt-3 overflow-x-auto"><table id="volumeTable" class="num w-full text-right text-[13px]"></table></div>
+    </details>
+  </div>
+</section>
+
+<section class="row">
+  <h2 class="margin-label">Records</h2>
+  <div hx-get="/htmx/personal-records" hx-trigger="load">
+    <div class="h-48 border-t border-rule"></div>
+  </div>
+</section>
+
+<section class="row">
+  <h2 class="margin-label">Calendar</h2>
+  <div hx-get="/htmx/heatmap" hx-trigger="load">
+    <div class="h-40"></div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if exercises %}
+<script>
+  // Fixed colour per muscle group, so a group looks the same in every chart.
+  const MUSCLE_COLORS = {
+    Legs: '#2F66A8', Back: '#B5653C', Chest: '#178E6E', Shoulders: '#C3962F',
+    Arms: '#B85C7C', Core: '#5E8A2E', Other: '#6B5AA3',
+  };
+  const colorOf = (group) => MUSCLE_COLORS[group] || MUSCLE_COLORS.Other;
+  const INK = '#2B2F36', INK_2 = '#5B6169', PENCIL = '#C8312B', PAPER = '#FAFAF8';
+
+  Chart.defaults.font.family = '"Public Sans", system-ui, sans-serif';
+  Chart.defaults.font.size = 12;
+  Chart.defaults.color = INK_2;
+
+  const axis = {
+    grid: { color: '#E1E8EF', drawTicks: false },
+    border: { display: false },
+    ticks: { color: INK_2, padding: 8 },
+  };
+  const tooltipStyle = {
+    backgroundColor: '#FFFFFF', borderColor: '#C9D6E3', borderWidth: 1, padding: 10, cornerRadius: 3, caretSize: 0,
+    titleColor: INK, bodyColor: INK_2, footerColor: INK,
+    titleFont: { weight: '600', size: 13 }, bodyFont: { size: 12 }, footerFont: { size: 12, weight: '600' },
+  };
+  // Shared by both charts.
+  const baseOptions = { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } };
+
+  // Same format as the server-rendered dates, e.g. "25 Sep".
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const fmtDate = (iso) => {
+    const d = new Date(iso);
+    return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+  };
+  const fmtKg = (v) => `${v.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg`;
+  const fmtDelta = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)} kg`;
+
+  const controls = document.getElementById('controls');
+  let progressionChart = null;
+
+  async function loadProgression() {
+    const form = new FormData(controls);
+    const res = await fetch(`/api/analytics/progression/${form.get('exercise_id')}?days=${form.get('days')}`);
+    if (!res.ok) return;
+    const { history } = await res.json();
+    const empty = document.getElementById('progressionEmpty');
+    empty.classList.toggle('hidden', history.length > 0);
+    empty.classList.toggle('flex', history.length === 0);
+
+    const data = {
+      labels: history.map((p) => fmtDate(p.session_date)),
+      datasets: [
+        {
+          label: 'Estimated 1RM',
+          data: history.map((p) => p.estimated_1rm),
+          borderColor: INK,
+          borderWidth: 2,
+          tension: 0.25,
+          pointRadius: history.map((p) => (p.is_pr ? 5.5 : 2)),
+          pointHoverRadius: history.map((p) => (p.is_pr ? 6.5 : 4)),
+          pointBackgroundColor: history.map((p) => (p.is_pr ? PAPER : INK)),
+          pointBorderColor: history.map((p) => (p.is_pr ? PENCIL : INK)),
+          pointBorderWidth: history.map((p) => (p.is_pr ? 1.75 : 0)),
+          pointHitRadius: 10,
+        },
+        {
+          label: 'Heaviest set',
+          data: history.map((p) => p.max_weight),
+          borderColor: '#8B9199',
+          borderDash: [3, 3],
+          borderWidth: 1.5,
+          tension: 0.25,
+          pointRadius: 0,
+          pointHoverRadius: 3,
+          pointBackgroundColor: '#8B9199',
+        },
+      ],
+    };
+
+    progressionChart ??= new Chart(document.getElementById('progressionChart'), {
+      type: 'line',
+      data,
+      options: {
+        ...baseOptions,
+        scales: {
+          x: { ...axis, grid: { display: false }, ticks: { ...axis.ticks, maxTicksLimit: 7, maxRotation: 0 } },
+          y: { ...axis, ticks: { ...axis.ticks, maxTicksLimit: 6 } },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            ...tooltipStyle,
+            displayColors: false,
+            callbacks: {
+              label: (ctx) => `${ctx.dataset.label}: ${fmtKg(ctx.parsed.y)}`,
+              footer: (items) => {
+                const point = progressionChart.$history[items[0].dataIndex];
+                const lines = [];
+                if (point.delta_1rm !== null) lines.push(`${fmtDelta(point.delta_1rm)} from the previous session`);
+                if (point.is_pr) lines.push('New record');
+                return lines;
+              },
+            },
+          },
+        },
+      },
+    });
+    progressionChart.$history = history;
+    progressionChart.data = data;
+    progressionChart.update();
+  }
+
+  function fillVolumeTable(weeks, series) {
+    const head = el('tr', 'border-b border-rule text-ink-2');
+    ['Week of', ...series.map((s) => s.muscle_group)].forEach((text, i) =>
+      head.append(el('th', `h-8 font-semibold ${i === 0 ? 'text-left' : 'pl-4'}`, text, { scope: 'col' })));
+    const rows = weeks.map((week, w) => {
+      const tr = el('tr', 'border-b border-rule');
+      tr.append(el('th', 'h-8 text-left font-normal text-ink-2', fmtDate(week), { scope: 'row' }),
+        ...series.map((s) => el('td', 'pl-4', s.volumes[w].toLocaleString())));
+      return tr;
+    });
+    document.getElementById('volumeTable').replaceChildren(head, ...rows);
+  }
+
+  async function loadWeeklyVolume() {
+    const res = await fetch('/api/analytics/weekly-volume?weeks=12');
+    if (!res.ok) return;
+    const { weeks, series } = await res.json();
+
+    document.getElementById('volumeLegend').replaceChildren(...series.map((s) => {
+      const swatch = el('span', 'inline-block h-2.5 w-2.5 rounded-[2px]');
+      swatch.style.background = colorOf(s.muscle_group);
+      const item = el('span', 'flex items-center gap-2');
+      item.append(swatch, s.muscle_group);
+      return item;
+    }));
+    fillVolumeTable(weeks, series);
+
+    new Chart(document.getElementById('volumeChart'), {
+      type: 'bar',
+      data: {
+        labels: weeks.map(fmtDate),
+        datasets: series.map((s) => ({
+          label: s.muscle_group,
+          data: s.volumes,
+          backgroundColor: colorOf(s.muscle_group),
+          borderColor: PAPER,
+          borderWidth: { top: 2 },
+          borderSkipped: 'start',
+          borderRadius: 0,
+          maxBarThickness: 26,
+        })),
+      },
+      options: {
+        ...baseOptions,
+        scales: {
+          x: { ...axis, stacked: true, grid: { display: false }, ticks: { ...axis.ticks, maxRotation: 0, autoSkipPadding: 10 } },
+          y: { ...axis, stacked: true, ticks: { ...axis.ticks, maxTicksLimit: 5, callback: (v) => (v >= 1000 ? `${v / 1000}k` : v) } },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            ...tooltipStyle,
+            boxWidth: 8,
+            boxHeight: 8,
+            boxPadding: 4,
+            usePointStyle: true,
+            filter: (item) => item.parsed.y > 0,
+            itemSort: (a, b) => b.datasetIndex - a.datasetIndex,
+            callbacks: {
+              title: (items) => `Week of ${items[0].label}`,
+              label: (ctx) => `${ctx.dataset.label}: ${fmtKg(ctx.parsed.y)}`,
+              footer: (items) => `Total ${fmtKg(items.reduce((sum, i) => sum + i.parsed.y, 0))}`,
+            },
+          },
+        },
+      },
+    });
+  }
+
+  // Lift picker. Picking a lift fires "change" on the form, which reloads the chart and summary.
+  const liftButton = document.getElementById('liftButton');
+  const liftMenu = document.getElementById('liftMenu');
+  const liftOptions = [...liftMenu.querySelectorAll('[role=option]')];
+  liftMenu.addEventListener('toggle', (event) => {
+    const open = event.newState === 'open';
+    liftButton.setAttribute('aria-expanded', open);
+    if (!open) return;
+    const box = liftButton.getBoundingClientRect();
+    Object.assign(liftMenu.style, { left: `${Math.max(8, box.left)}px`, top: `${box.bottom + 6}px` });
+    liftMenu.querySelector('[aria-selected=true]').focus();
+  });
+  liftMenu.addEventListener('click', (event) => {
+    const choice = event.target.closest('[role=option]');
+    if (!choice) return;
+    liftOptions.forEach((option) => option.setAttribute('aria-selected', option === choice));
+    document.getElementById('liftValue').value = choice.dataset.id;
+    document.getElementById('liftName').textContent = choice.textContent.trim();
+    liftMenu.hidePopover();
+    liftButton.focus();
+    controls.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  liftMenu.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    event.preventDefault();
+    const step = event.key === 'ArrowDown' ? 1 : -1;
+    const next = (liftOptions.indexOf(document.activeElement) + step + liftOptions.length) % liftOptions.length;
+    liftOptions[next].focus();
+  });
+
+  controls.addEventListener('change', loadProgression);
+  loadProgression();
+  loadWeeklyVolume();
+</script>
+{% endif %}
+{% endblock %}

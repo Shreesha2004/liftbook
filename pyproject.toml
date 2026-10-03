@@ -1,0 +1,72 @@
+[project]
+name = "liftbook"
+version = "2.0.0"
+description = "Workout log for barbell training, with progress analytics in PostgreSQL"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+authors = [{ name = "Shreesha Vamanjoor Balakrishnan" }]
+dependencies = [
+    "fastapi==0.141.1",
+    "uvicorn==0.52.4",
+    "SQLAlchemy==2.0.52",
+    "psycopg2-binary==2.9.12",
+    "alembic==1.20.0",
+    "pydantic==2.13.4",
+    "pydantic-settings==2.15.0",
+    "email-validator==2.3.0",
+    "Jinja2==3.1.6",
+    "python-multipart==0.0.32",
+    "PyJWT==2.15.1",
+    "pwdlib[argon2]==0.3.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1", "pytest-cov==7.1.0", "httpx==0.28.1", "ruff==0.16.10"]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+app = ["templates/*.html", "templates/partials/*.html"]
+
+[tool.alembic]
+script_location = "%(here)s/alembic"
+prepend_sys_path = ["."]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]  # import `app` from the project root, however pytest is started
+addopts = "-ra --strict-markers"
+filterwarnings = [
+    # Starlette's TestClient nudges toward httpx2; httpx is still supported.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/prestart.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = [
+    "B008",    # FastAPI's Depends()/Form() defaults are the intended pattern
+    "RUF001",  # "×" and "−" in UI strings are intended
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+known-third-party = ["alembic"]  # not the local migrations folder of the same name
+known-local-folder = ["helpers"]

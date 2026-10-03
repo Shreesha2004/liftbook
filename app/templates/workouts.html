@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}History{% endblock %}
+
+{% block content %}
+<section class="row">
+  <p class="margin-label hidden font-normal text-ink-3 lg:block">Newest first</p>
+  <h1 class="text-3xl font-bold tracking-tight sm:text-[2.5rem] sm:leading-tight">{{ total }} workout{{ "s" if total != 1 }}</h1>
+</section>
+
+{% if total == 0 %}
+<section class="row">
+  <span class="hidden lg:block"></span>
+  <div class="max-w-xl space-y-4">
+    <p class="text-ink-2">Nothing logged yet. Your sessions will be listed here, newest first.</p>
+    <a href="/workouts/new" class="btn-ink">Log a session</a>
+  </div>
+</section>
+{% else %}
+<ol class="space-y-12" aria-label="Workouts, newest first">
+  {% include "partials/workout_list.html" %}
+</ol>
+{% endif %}
+{% endblock %}

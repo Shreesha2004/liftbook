@@ -1,0 +1,25 @@
+{% from "_marks.html" import icon %}
+{% macro stepper(name, value, label, unit, button_step, input_step, min, max, inputmode, less, more, placeholder="") -%}
+<div class="stepper flex items-center" data-step="{{ button_step }}" data-min="{{ min }}" data-max="{{ max }}">
+  <button type="button" class="step grid h-11 w-11 shrink-0 place-items-center sm:h-10 sm:w-10 rounded-[3px] text-ink-2 hover:bg-rule-soft hover:text-ink" data-dir="-1" aria-label="{{ less }}">{{ icon("minus") }}</button>
+  <input type="number" name="{{ name }}" min="{{ min }}" max="{{ max }}" step="{{ input_step }}" required inputmode="{{ inputmode }}"
+         value="{{ value }}" placeholder="{{ placeholder }}" aria-label="{{ label }}"
+         class="num w-full min-w-0 border-0 bg-transparent p-0 text-center font-semibold text-ink placeholder-ink-3 focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">
+  <span class="text-[13px] text-ink-3 sm:hidden">{{ unit }}</span>
+  <button type="button" class="step grid h-11 w-11 shrink-0 place-items-center sm:h-10 sm:w-10 rounded-[3px] text-ink-2 hover:bg-rule-soft hover:text-ink" data-dir="1" aria-label="{{ more }}">{{ icon("plus") }}</button>
+</div>
+{%- endmacro %}
+<div class="set-row grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.75rem] items-center gap-x-3 gap-y-1 border-b border-rule py-2 sm:grid-cols-[minmax(0,1fr)_8.5rem_9.5rem_2.5rem]">
+  <select name="exercise_id" class="field-select col-span-3 border-transparent font-medium sm:col-span-1" aria-label="Exercise" required>
+    {% for group, items in exercises | groupby("muscle_group") %}
+    <optgroup label="{{ group }}">
+      {% for exercise in items %}
+      <option value="{{ exercise.id }}" {{ "selected" if s and s.exercise_id == exercise.id }}>{{ exercise.name }}</option>
+      {% endfor %}
+    </optgroup>
+    {% endfor %}
+  </select>
+  {{ stepper("reps", s.reps if s and s.reps else 5, "Reps", "reps", 1, 1, 1, 36, "numeric", "One rep fewer", "One rep more") }}
+  {{ stepper("weight", "%g" | format(s.weight) if s and s.weight is not none else "", "Weight in kg", "kg", 2.5, 0.5, 0, 1000, "decimal", "2.5 kg lighter", "2.5 kg heavier", "0") }}
+  <button type="button" class="remove-set grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-[3px] text-ink-3 hover:bg-rule-soft hover:text-pencil" aria-label="Remove set">{{ icon("x") }}</button>
+</div>

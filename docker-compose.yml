@@ -1,0 +1,31 @@
+# One command to run the whole stack locally:  docker compose up --build
+# Then open http://localhost:8000 and log in with the demo account.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: workout
+      POSTGRES_PASSWORD: workout
+      POSTGRES_DB: workout_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workout -d workout_db"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+
+  web:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://workout:workout@db:5432/workout_db
+      SECRET_KEY: local-docker-secret-change-me-for-anything-public
+      SEED_DEMO_DATA: "true"
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata:

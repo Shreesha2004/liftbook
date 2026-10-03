@@ -1,0 +1,45 @@
+{% for workout in workouts %}
+<li id="workout-{{ workout.id }}" class="row">
+  <p class="margin-label leading-6">
+    <time datetime="{{ workout.performed_at.isoformat() }}">{{ workout.performed_at | shortdate }}</time>
+    <span class="block font-normal text-ink-3">{{ workout.performed_at.year }}</span>
+  </p>
+  <div class="min-w-0">
+    <div class="flex items-start justify-between gap-4">
+      <div class="min-w-0">
+        <h2 class="truncate text-lg font-semibold leading-6">{{ workout.title }}</h2>
+        {% if workout.notes %}<p class="mt-1 text-sm italic text-ink-2">{{ workout.notes }}</p>{% endif %}
+      </div>
+      <div class="flex shrink-0 items-center gap-4 text-[13px]">
+        <a href="/workouts/{{ workout.id }}/edit" class="font-medium text-ink-2 underline decoration-rule underline-offset-4 hover:text-ink hover:decoration-ink">Edit</a>
+        <button type="button" class="font-medium text-ink-2 underline decoration-rule underline-offset-4 hover:text-pencil hover:decoration-pencil"
+                hx-delete="/htmx/workouts/{{ workout.id }}"
+                hx-target="#workout-{{ workout.id }}" hx-swap="outerHTML"
+                hx-confirm="Delete “{{ workout.title }}”? This can't be undone.">Delete</button>
+      </div>
+    </div>
+
+    <ul class="num mt-3 border-t border-rule text-sm">
+      {% for name, sets, best in workout | by_exercise %}
+      {# Mobile: name and e1RM on one line, sets below. Desktop: three columns. #}
+      <li class="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 border-b border-rule py-1 leading-6 sm:grid-cols-[36%_minmax(0,1fr)_6rem]">
+        <span class="font-medium">{{ name }}</span>
+        <span class="col-span-2 row-start-2 text-ink-2 sm:col-span-1 sm:row-start-auto">{{ sets }}</span>
+        <span class="text-right text-ink-3 whitespace-nowrap">e1RM {{ best | kg }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="num mt-2 text-right text-[13px] text-ink-3">{{ workout.sets | length }} sets · {{ workout.total_volume | kg }} kg</p>
+  </div>
+</li>
+{% endfor %}
+
+{% if next_skip is not none %}
+<li id="loadMore" class="row">
+  <span class="hidden lg:block"></span>
+  <button type="button" class="btn-quiet justify-self-start"
+          hx-get="/htmx/workouts?skip={{ next_skip }}" hx-target="#loadMore" hx-swap="outerHTML">
+    Show older workouts
+  </button>
+</li>
+{% endif %}

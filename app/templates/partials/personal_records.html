@@ -1,0 +1,28 @@
+{% from "_marks.html" import circled %}
+{% if not records %}
+<p class="text-sm text-ink-3">No records yet.</p>
+{% else %}
+<table class="num w-full text-sm">
+  <thead>
+    <tr class="border-b border-rule text-left text-[13px] text-ink-2">
+      <th scope="col" class="h-8 font-semibold">Exercise</th>
+      <th scope="col" class="h-8 pl-4 text-right font-semibold">Est. 1RM</th>
+      <th scope="col" class="hidden h-8 pl-4 text-right font-semibold sm:table-cell">Best set</th>
+      <th scope="col" class="h-8 pl-4 text-right font-semibold">Date</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for record in records %}
+    <tr class="border-b border-rule">
+      <td class="h-8 pr-2 font-medium">{{ record.exercise_name }}</td>
+      <td class="h-8 pl-4 text-right font-semibold">
+        {%- if record.achieved_at == latest_session_at %}{{ circled(record.best_estimated_1rm | kg) }}{% else %}{{ record.best_estimated_1rm | kg }}{% endif -%}
+      </td>
+      <td class="hidden h-8 pl-4 text-right text-ink-2 sm:table-cell">{{ record.weight | kg }} kg × {{ record.reps }}</td>
+      <td class="h-8 pl-4 text-right text-ink-2 whitespace-nowrap">{{ record.achieved_at | longdate }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p class="mt-3 text-[13px] text-ink-3">Estimated 1RM in kg. Circled: set in your latest session.</p>
+{% endif %}

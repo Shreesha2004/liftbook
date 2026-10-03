@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Not found{% endblock %}
+
+{% block content %}
+<section class="row pt-6 lg:pt-16">
+  <span class="hidden lg:block"></span>
+  <div class="max-w-md space-y-4">
+    <h1 class="text-2xl font-bold tracking-tight">{{ message }}</h1>
+    <p class="text-ink-2">It may have been deleted, or it belongs to another account.</p>
+    <a href="/" class="btn-quiet">Back to your dashboard</a>
+  </div>
+</section>
+{% endblock %}

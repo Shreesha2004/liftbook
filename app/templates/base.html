@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#FAFAF8">
+  <title>{% block title %}Dashboard{% endblock %} · Liftbook</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23FAFAF8'/%3E%3Cpath d='M0 11.5h32M0 20.5h32M0 29.5h32' stroke='%23C9D6E3'/%3E%3Cpath d='M8.5 0v32' stroke='%23E6A5A1'/%3E%3Cpath d='M13 24.5 L13 7 M13 24.5 L23 24.5' stroke='%232B2F36' stroke-width='3' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            paper: '#FAFAF8',
+            rule: '#C9D6E3',
+            'rule-soft': '#E1E8EF',
+            margin: '#E6A5A1',
+            ink: { DEFAULT: '#2B2F36', 2: '#5B6169', 3: '#6E737A' },
+            pencil: '#C8312B',
+          },
+          fontFamily: { sans: ['"Public Sans"', 'system-ui', 'sans-serif'] },
+        },
+      },
+    };
+  </script>
+  <style type="text/tailwindcss">
+    @layer base {
+      html { background: #FAFAF8; scrollbar-color: #C3CBD3 transparent; }
+      body { @apply bg-paper text-ink font-sans antialiased text-[15px] leading-relaxed; }
+      ::selection { background: #D5E1EC; color: #2B2F36; }
+      input, select, textarea { caret-color: #2B2F36; }
+      :focus-visible { outline: 2px solid #2B2F36; outline-offset: 2px; border-radius: 2px; }
+      a { text-underline-offset: 3px; }
+      .num { font-variant-numeric: tabular-nums; }
+    }
+
+    @layer components {
+      /* Page container with the red margin line. */
+      .sheet { @apply relative mx-auto max-w-[68rem] pl-7 pr-4 lg:px-10; }
+      .sheet::before { content: ""; @apply pointer-events-none absolute inset-y-0 left-3 w-px bg-margin lg:left-[12.5rem]; }
+
+      /* Label in the margin column on desktop, stacked above the content on mobile. */
+      .row { @apply grid gap-y-3 lg:grid-cols-[9rem_minmax(0,1fr)] lg:gap-x-8; }
+      .margin-label { @apply text-[13px] font-semibold leading-8 text-ink-2 lg:text-right; }
+
+      .ruled > * { @apply border-b border-rule; }
+      .ruled-top { @apply border-t border-rule; }
+
+      .field { @apply w-full rounded-none border-0 border-b border-rule bg-transparent px-0 py-1.5 text-ink placeholder-ink-3 transition-colors focus:border-ink focus:outline-none focus:ring-0; }
+      .field-select { @apply w-full cursor-pointer appearance-none rounded-none border-0 border-b border-rule bg-transparent py-1.5 pl-0 pr-7 text-ink focus:border-ink focus:outline-none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235B6169' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.15rem center; background-size: 1rem; }
+
+      .btn-ink { @apply inline-flex h-10 items-center justify-center gap-2 rounded-[3px] bg-ink px-4 text-sm font-semibold text-paper transition-colors hover:bg-black disabled:opacity-50; }
+      .btn-quiet { @apply inline-flex h-10 items-center justify-center gap-2 rounded-[3px] text-sm font-medium text-ink underline decoration-rule decoration-1 underline-offset-4 transition-colors hover:decoration-ink; }
+      .nav-link { @apply py-1 text-sm font-medium text-ink-2 decoration-2 underline-offset-[6px] transition-colors hover:text-ink; }
+      .nav-link[aria-current="page"] { @apply text-ink underline decoration-ink; }
+
+      /* Hand-drawn circle around a number, used for new records. */
+      .circled { @apply relative mx-[0.45em] inline-block whitespace-nowrap; }
+      .circled svg { position: absolute; left: -0.55em; top: -0.42em; width: calc(100% + 1.1em); height: calc(100% + 0.84em); overflow: visible; pointer-events: none; }
+      .circled path { fill: none; stroke: #C8312B; stroke-width: 1.7; stroke-linecap: round; stroke-dasharray: 1; animation: pencil 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both; }
+      @keyframes pencil { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+      @media (prefers-reduced-motion: reduce) { .circled path { animation: none; } }
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body class="min-h-screen">
+  <div class="sheet min-h-screen pb-28 lg:pb-16">
+    {% if user %}
+    <header class="row items-center border-b border-rule py-4">
+      <a href="/" class="text-lg font-bold tracking-tight text-ink lg:text-right">Liftbook</a>
+      <div class="flex items-center justify-between gap-4">
+        <nav class="flex items-center gap-5" aria-label="Main">
+          <a href="/" class="nav-link" {{ 'aria-current=page' if active == 'dashboard' }}>Dashboard</a>
+          <a href="/workouts" class="nav-link" {{ 'aria-current=page' if active == 'history' }}>History</a>
+          <a href="/docs" class="nav-link hidden sm:inline" target="_blank" rel="noopener">API</a>
+        </nav>
+        <div class="flex items-center gap-5">
+          <form method="post" action="/logout">
+            <button type="submit" class="nav-link" title="Signed in as {{ user.email }}">Log out</button>
+          </form>
+          {% if active != 'log' %}<a href="/workouts/new" class="btn-ink hidden lg:inline-flex">Log a session</a>{% endif %}
+        </div>
+      </div>
+    </header>
+    {% endif %}
+
+    <main class="space-y-12 pt-10 lg:space-y-16 lg:pt-14">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  {% if user and active != 'log' %}
+  <div class="fixed inset-x-0 bottom-0 border-t border-rule bg-paper/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:hidden">
+    <a href="/workouts/new" class="btn-ink h-12 w-full">Log a session</a>
+  </div>
+  {% endif %}
+
+  <script>
+    // Helpers shared by the page scripts.
+    const el = (tag, className = '', text = '', props = {}) =>
+      Object.assign(document.createElement(tag), { className, textContent: text, ...props });
+    const sendJSON = (url, method, body) =>
+      fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

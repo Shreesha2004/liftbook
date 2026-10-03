@@ -1,0 +1,21 @@
+{% if plateaus %}
+<section class="row" role="status">
+  <h2 class="margin-label text-pencil">Coach's note</h2>
+  <div class="space-y-4">
+    {% for plateau in plateaus %}
+    <div class="relative max-w-2xl pl-5">
+      <svg class="absolute left-0 top-0.5 h-[calc(100%-0.25rem)] w-2.5" viewBox="0 0 12 100" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M10 2C4 3 3 6 3 12v76c0 6 1 9 7 10" fill="none" stroke="#C8312B" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>
+      <p class="leading-7 text-ink">
+        <strong class="font-semibold">{{ plateau.exercise_name }} has stalled.</strong>
+        Your last {{ plateau.sessions_checked }} sessions peaked at
+        <span class="num">{{ plateau.recent_best | kg }} kg</span> estimated 1RM, short of your best of
+        <span class="num">{{ plateau.all_time_best | kg }} kg</span> on {{ plateau.best_achieved_at | longdate }}.
+        A lighter deload week or a new rep range usually gets it moving again.
+      </p>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}

@@ -1,0 +1,35 @@
+{% from "_marks.html" import circled %}
+{% if not progression.history %}
+<p class="border-y border-rule py-6 text-sm text-ink-2">
+  No {{ progression.exercise_name }} sessions in this range. Try a longer range.
+</p>
+{% else %}
+{% set delta = latest.delta_1rm %}
+<dl class="num flex flex-wrap items-end gap-x-12 gap-y-4 border-y border-rule py-5">
+  <div>
+    <dt class="text-[13px] text-ink-2">Peak est. 1RM</dt>
+    <dd class="mt-1 text-[3.25rem] font-bold leading-none tracking-tight">
+      {%- if fresh_record %}{{ circled(peak_1rm | kg) }}{% else %}{{ peak_1rm | kg }}{% endif %}
+      <span class="text-lg font-medium tracking-normal text-ink-3">kg</span>
+    </dd>
+  </div>
+  <div class="flex flex-wrap gap-x-10 gap-y-3 pb-0.5">
+    <div>
+      <dt class="text-[13px] text-ink-2">Last top set</dt>
+      <dd class="mt-0.5 text-lg font-semibold">{{ latest.max_weight | kg }} kg <span class="text-[13px] font-normal text-ink-3">{{ latest.session_date | shortdate }}</span></dd>
+    </div>
+    <div>
+      <dt class="text-[13px] text-ink-2">Est. 1RM change</dt>
+      {% if delta is none %}
+      <dd class="mt-0.5 text-lg font-semibold text-ink-3">First session</dd>
+      {% else %}
+      <dd class="mt-0.5 text-lg font-semibold">{{ "+" if delta > 0 else "−" if delta < 0 }}{{ (delta | abs) | kg }} kg</dd>
+      {% endif %}
+    </div>
+    <div>
+      <dt class="text-[13px] text-ink-2">Sessions</dt>
+      <dd class="mt-0.5 text-lg font-semibold">{{ progression.total_sessions }} <span class="text-[13px] font-normal text-ink-3">{{ pr_count }} record{{ "s" if pr_count != 1 }}</span></dd>
+    </div>
+  </div>
+</dl>
+{% endif %}

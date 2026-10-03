@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% from "_marks.html" import circled, icon %}
+{% block title %}{{ "Edit session" if workout else "Log a session" }}{% endblock %}
+
+{% block content %}
+<section id="savedPanel" class="row hidden" role="status" aria-live="polite">
+  <span class="hidden lg:block"></span>
+  <div class="max-w-2xl space-y-5">
+    <h1 id="savedSummary" class="text-2xl font-bold tracking-tight"></h1>
+    <p id="savedTotals" class="num text-ink-2"></p>
+    <ul id="savedRecords" class="space-y-3"></ul>
+    <template id="circleMark">{{ circled("") }}</template>
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-3 pt-2">
+      <a href="/" class="btn-ink">See it on the dashboard</a>
+      <a href="/workouts/new" class="btn-quiet">Log another session</a>
+    </div>
+  </div>
+</section>
+
+<form id="workoutForm" class="space-y-12" data-workout-id="{{ workout.id if workout else '' }}" novalidate>
+  <section class="row">
+    <span class="hidden lg:block"></span>
+    <div class="max-w-3xl space-y-6">
+      <label class="block">
+        <span class="sr-only">Title</span>
+        <input name="title" class="field text-[1.75rem] font-bold tracking-tight placeholder:font-semibold sm:text-[2rem]" required maxlength="120"
+               placeholder="Name this session" value="{{ workout.title if workout else '' }}">
+      </label>
+      <div class="grid gap-6 sm:grid-cols-[13rem_minmax(0,1fr)]">
+        <label class="block">
+          <span class="text-[13px] font-semibold text-ink-2">Date and time</span>
+          <input name="performed_at" type="datetime-local" class="field num" required
+                 data-initial="{{ workout.performed_at.isoformat() if workout else '' }}">
+        </label>
+        <label class="block">
+          <span class="text-[13px] font-semibold text-ink-2">Notes <span class="font-normal text-ink-3">(optional)</span></span>
+          <input name="notes" class="field" maxlength="500" placeholder="How did it feel?"
+                 value="{{ workout.notes or '' if workout else '' }}">
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <section class="row">
+    <h2 class="margin-label">Sets</h2>
+    <div class="max-w-3xl">
+      <div class="hidden grid-cols-[minmax(0,1fr)_8.5rem_9.5rem_2.5rem] gap-x-3 border-b border-rule pb-1 text-[13px] font-semibold text-ink-2 sm:grid">
+        <span>Exercise</span><span class="text-center">Reps</span><span class="text-center">kg</span><span></span>
+      </div>
+      <div id="setsList">
+        {% if workout %}
+          {% for s in workout.sets %}{% include "partials/set_row.html" %}{% endfor %}
+        {% else %}
+          {% with s={"exercise_id": default_exercise_id, "reps": None, "weight": None} %}{% include "partials/set_row.html" %}{% endwith %}
+        {% endif %}
+      </div>
+
+      <div class="flex flex-wrap items-center gap-x-6 gap-y-2 pt-3">
+        <button type="button" class="btn-quiet"
+                hx-get="/htmx/set-row" hx-include="#setsList .set-row:last-child"
+                hx-target="#setsList" hx-swap="beforeend">{{ icon("plus") }}Add a set</button>
+        <details id="newExercise" class="w-full sm:w-auto">
+          <summary class="btn-quiet cursor-pointer list-none">Exercise not listed?</summary>
+          <div class="mt-3 flex flex-wrap items-end gap-x-4 gap-y-3">
+            <label class="block">
+              <span class="text-[13px] font-semibold text-ink-2">Name</span>
+              <input id="newExerciseName" class="field w-56" maxlength="100" placeholder="Hip Thrust">
+            </label>
+            <label class="block">
+              <span class="text-[13px] font-semibold text-ink-2">Muscle group</span>
+              <select id="newExerciseGroup" class="field-select w-36">
+                {% for group in muscle_groups %}<option>{{ group }}</option>{% endfor %}
+              </select>
+            </label>
+            <button type="button" id="addExercise" class="btn-ink h-9">Add exercise</button>
+            <span id="exerciseMessage" class="w-full text-[13px]" role="status"></span>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="row">
+    <span class="hidden lg:block"></span>
+    <div class="max-w-3xl space-y-4">
+      <p id="formError" class="hidden text-sm font-medium text-pencil" role="alert"></p>
+      <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <button type="submit" class="btn-ink h-12 min-w-40 sm:h-10">{{ "Save changes" if workout else "Save session" }}</button>
+        <a href="{{ '/workouts' if workout else '/' }}" class="btn-quiet">Cancel</a>
+      </div>
+    </div>
+  </section>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const form = document.getElementById('workoutForm');
+  const setsList = document.getElementById('setsList');
+  const formError = document.getElementById('formError');
+  const field = (name) => form.querySelector(`[name="${name}"]`);
+
+  // datetime-local wants local "YYYY-MM-DDTHH:MM".
+  const toLocalInput = (date) =>
+    new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  const when = field('performed_at');
+  when.value = toLocalInput(when.dataset.initial ? new Date(when.dataset.initial) : new Date());
+
+  setsList.addEventListener('click', (event) => {
+    const step = event.target.closest('.step');
+    if (step) {
+      const stepper = step.closest('.stepper');
+      const input = stepper.querySelector('input');
+      const size = Number(stepper.dataset.step);
+      const next = (Number(input.value) || 0) + size * Number(step.dataset.dir);
+      input.value = Math.min(Number(stepper.dataset.max), Math.max(Number(stepper.dataset.min), next));
+      return;
+    }
+    // Removing the only row clears it instead, so there is always a row to fill in.
+    const remove = event.target.closest('.remove-set');
+    if (!remove) return;
+    const row = remove.closest('.set-row');
+    if (setsList.querySelectorAll('.set-row').length > 1) row.remove();
+    else row.querySelector('[name=weight]').value = '';
+  });
+
+  function showError(message) {
+    formError.textContent = message;
+    formError.classList.toggle('hidden', !message);
+  }
+
+  async function describeError(response) {
+    const body = await response.json().catch(() => ({}));
+    if (typeof body.detail === 'string') return body.detail;
+    if (Array.isArray(body.detail) && body.detail.length) {
+      const { loc, msg } = body.detail[0];
+      const path = loc.slice(1);
+      const where = path[0] === 'sets' && path.length > 2 ? `Set ${path[1] + 1} ${path[2]}` : path.join(' ');
+      return `${where}: ${msg.replace(/^Value error, /, '')}`;
+    }
+    return 'Something went wrong. Please try again.';
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    showError('');
+    if (!form.reportValidity()) return;
+
+    const payload = {
+      title: field('title').value.trim(),
+      notes: field('notes').value.trim() || null,
+      performed_at: new Date(when.value).toISOString(),
+      sets: [...setsList.querySelectorAll('.set-row')].map((row) => ({
+        exercise_id: Number(row.querySelector('[name=exercise_id]').value),
+        reps: Number(row.querySelector('[name=reps]').value),
+        weight: Number(row.querySelector('[name=weight]').value),
+      })),
+    };
+
+    const id = form.dataset.workoutId;
+    const submit = form.querySelector('[type=submit]');
+    submit.disabled = true;
+    try {
+      const response = await sendJSON(id ? `/api/workouts/${id}` : '/api/workouts', id ? 'PUT' : 'POST', payload);
+      if (!response.ok) {
+        showError(await describeError(response));
+        return;
+      }
+      if (id) {
+        window.location.href = '/workouts';
+        return;
+      }
+      showSaved(await response.json());
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
+  // Wraps a value in the circle mark rendered by the server.
+  function circled(text) {
+    const mark = document.getElementById('circleMark').content.firstElementChild.cloneNode(true);
+    mark.prepend(text);
+    return mark;
+  }
+
+  function showSaved(workout) {
+    const kg = (v) => v.toLocaleString(undefined, { maximumFractionDigits: 1 });
+    document.getElementById('savedSummary').textContent = `${workout.title} is in the book.`;
+    document.getElementById('savedTotals').textContent =
+      `${workout.sets.length} ${workout.sets.length === 1 ? 'set' : 'sets'}, ${kg(workout.total_volume)} kg lifted in total.`;
+    document.getElementById('savedRecords').replaceChildren(...workout.new_personal_records.map((record) => {
+      const item = el('li', 'num leading-8');
+      item.append(el('strong', 'font-semibold', `New record on ${record.exercise_name}: `),
+        circled(`${kg(record.estimated_1rm)} kg`), ` estimated 1RM, up from ${kg(record.previous_best)} kg.`);
+      return item;
+    }));
+    form.classList.add('hidden');
+    document.getElementById('savedPanel').classList.remove('hidden');
+    window.scrollTo({ top: 0 });
+  }
+
+  // --- Custom exercises ---
+  const nameInput = document.getElementById('newExerciseName');
+  const groupSelect = document.getElementById('newExerciseGroup');
+  const exerciseMessage = document.getElementById('exerciseMessage');
+
+  async function addExercise() {
+    const name = nameInput.value.trim();
+    if (!name) return nameInput.focus();
+    const response = await sendJSON('/api/exercises', 'POST', { name, muscle_group: groupSelect.value });
+    if (!response.ok) {
+      exerciseMessage.className = 'w-full text-[13px] font-medium text-pencil';
+      exerciseMessage.textContent = await describeError(response);
+      return;
+    }
+    const exercise = await response.json();
+    const selects = setsList.querySelectorAll('[name=exercise_id]');
+    selects.forEach((select) => {
+      let group = [...select.querySelectorAll('optgroup')].find((g) => g.label === exercise.muscle_group);
+      if (!group) {
+        group = el('optgroup', '', '', { label: exercise.muscle_group });
+        select.append(group);
+      }
+      group.append(new Option(exercise.name, exercise.id));
+    });
+    selects[selects.length - 1].value = exercise.id;
+    nameInput.value = '';
+    exerciseMessage.className = 'w-full text-[13px] text-ink-2';
+    exerciseMessage.textContent = `Added ${exercise.name} and selected it in the last set.`;
+  }
+
+  document.getElementById('addExercise').addEventListener('click', addExercise);
+  nameInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      addExercise();
+    }
+  });
+</script>
+{% endblock %}

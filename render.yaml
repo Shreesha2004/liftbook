@@ -1,0 +1,17 @@
+# Render Blueprint: New > Blueprint in the Render dashboard, then point it at this repo.
+# Paste a Postgres connection string (e.g. a free Neon database) into DATABASE_URL when prompted.
+services:
+  - type: web
+    name: liftbook
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+      - key: SEED_DEMO_DATA
+        value: "true"

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% set is_login = mode == "login" %}
+{% block title %}{{ "Log in" if is_login else "Create account" }}{% endblock %}
+
+{% block content %}
+<section class="row pt-6 lg:pt-16">
+  <span class="hidden lg:block"></span>
+  <div class="max-w-md space-y-10">
+    <div class="space-y-3">
+      <h1 class="text-4xl font-bold tracking-tight text-ink">Liftbook</h1>
+      <p class="text-ink-2">Log your sets. Liftbook works out your estimated max for every lift, marks your records, and tells you when a lift has stalled.</p>
+    </div>
+
+    <form method="post" action="/{{ mode }}" class="space-y-6">
+      {% if error %}
+      <p role="alert" class="text-sm font-medium text-pencil">{{ error }}</p>
+      {% endif %}
+
+      {% if not is_login %}
+      <label class="block">
+        <span class="text-[13px] font-semibold text-ink-2">Your name <span class="font-normal text-ink-3">(optional)</span></span>
+        <input name="display_name" class="field" maxlength="80" autocomplete="name" value="{{ display_name or '' }}">
+      </label>
+      {% endif %}
+
+      <label class="block">
+        <span class="text-[13px] font-semibold text-ink-2">Email</span>
+        <input name="email" type="email" class="field" required autocomplete="email" value="{{ email or '' }}" {{ 'autofocus' if not email }}>
+      </label>
+
+      <label class="block">
+        <span class="text-[13px] font-semibold text-ink-2">Password</span>
+        <input name="password" type="password" class="field" required
+               {% if is_login %}autocomplete="current-password"{% else %}autocomplete="new-password" minlength="8"{% endif %}>
+        {% if not is_login %}<span class="mt-1.5 block text-[13px] text-ink-3">At least 8 characters.</span>{% endif %}
+      </label>
+
+      <div class="flex flex-wrap items-center gap-x-6 gap-y-3 pt-2">
+        <button type="submit" class="btn-ink min-w-32">{{ "Log in" if is_login else "Create account" }}</button>
+        {% if is_login %}
+          <a href="/register" class="btn-quiet">Create an account</a>
+        {% else %}
+          <a href="/login" class="btn-quiet">I already have an account</a>
+        {% endif %}
+      </div>
+    </form>
+
+    {% if is_login and demo %}
+    <div class="border-t border-rule pt-6 space-y-2">
+      <p class="text-sm text-ink-2">Just looking? Open the demo account, which has six months of training already logged.</p>
+      <button type="button" class="btn-quiet" id="demoLogin">Open the demo account</button>
+      <p class="num text-[13px] text-ink-3">{{ demo.email }} · {{ demo.password }}</p>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% if is_login and demo %}
+<script>
+  document.getElementById('demoLogin').addEventListener('click', () => {
+    const form = document.querySelector('form[action="/login"]');
+    form.querySelector('[name=email]').value = {{ demo.email | tojson }};
+    form.querySelector('[name=password]').value = {{ demo.password | tojson }};
+    form.submit();
+  });
+</script>
+{% endif %}
+{% endblock %}

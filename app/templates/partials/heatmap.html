@@ -1,0 +1,34 @@
+<div class="space-y-4">
+  <p class="num text-sm text-ink-2">
+    {{ frequency.total_sessions }} sessions in the last {{ frequency.weeks }} weeks.
+    You trained in {{ frequency.active_weeks }} of them.
+  </p>
+
+  <div class="grid max-w-3xl gap-[3px]"
+       style="grid-template-columns: 2.25rem repeat({{ columns | length }}, minmax(0, 1fr));"
+       role="img"
+       aria-label="Training calendar: {{ frequency.total_sessions }} sessions between {{ frequency.start | longdate }} and {{ frequency.end | longdate }}">
+    <span></span>
+    {% for column in columns %}
+    <span class="h-5 overflow-visible whitespace-nowrap text-xs text-ink-3">{{ column.label }}</span>
+    {% endfor %}
+
+    {% for row in range(7) %}
+    <span class="self-center text-xs leading-none text-ink-3">{{ ["Mon", "", "Wed", "", "Fri", "", ""][row] }}</span>
+      {% for column in columns %}
+        {% set cell = column.cells[row] %}
+        {% if cell %}
+        <span class="aspect-square rounded-[2px] {{ levels[cell.level] }}" title="{{ cell.title }}"></span>
+        {% else %}
+        <span></span>
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+  </div>
+
+  <div class="flex items-center gap-1.5 text-xs text-ink-3" aria-hidden="true">
+    Rest
+    {% for level in levels %}<span class="inline-block h-3 w-3 rounded-[2px] {{ level }}"></span>{% endfor %}
+    Most volume
+  </div>
+</div>
